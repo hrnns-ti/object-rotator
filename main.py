@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from OpenGL.raw.GLUT import glutPostRedisplay
 from cvzone.HandTrackingModule import HandDetector
 
 import threading
@@ -7,6 +8,7 @@ import queue
 
 from src.controllers.hand_controller import HandTrackingController
 from src.rendering.cube_renderer import CubeRenderer
+
 
 def main():
     cap = cv2.VideoCapture(0)
@@ -29,7 +31,7 @@ def main():
 
     # queue untuk kirim data ke thread OpenGL
     render_queue = queue.Queue()
-    cube = CubeRenderer()
+    cube = CubeRenderer(obj_path="models/Lowpoly_tree_sample.obj")  # path .obj
 
     # ================= THREAD OPENGL ================= #
     def gl_thread():
@@ -44,16 +46,16 @@ def main():
         glutInitWindowSize(800, 600)
         glutCreateWindow(b"3D Object")
 
-        cube.init_gl()
+        cube.init_gl(800, 600)
 
         def display():
-            # ambil state terbaru kalau ada
             try:
                 rot_x_val, rot_y_val, scale_val = render_queue.get_nowait()
                 cube.update_state(rot_x_val, rot_y_val, scale_val)
             except queue.Empty:
                 pass
             cube.draw()
+            glutPostRedisplay()
 
         glutDisplayFunc(display)
         glutIdleFunc(display)
@@ -126,8 +128,15 @@ def main():
                             (0, 255, 255), 2)
 
         # integrasi rotasi dari vektor gerak tangan kiri
-        rot_speed_x = -rot_vector[1] * 0.005  # dy -> rot_x
-        rot_speed_y =  rot_vector[0] * 0.005  # dx -> rot_y
+        dx, dy = rot_vector
+        dead = 1.0
+        if abs(dx) < dead:
+            dx = 0.0
+        if abs(dy) < dead:
+            dy = 0.0
+
+        rot_speed_x = -dy * 0.05  # dy -> rot_x
+        rot_speed_y =  dx * 0.05  # dx -> rot_y
         rot_x += rot_speed_x
         rot_y += rot_speed_y
 
@@ -180,6 +189,7 @@ def main():
 
     cap.release()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()
