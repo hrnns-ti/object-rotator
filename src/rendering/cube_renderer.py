@@ -105,3 +105,5 @@ class CubeRenderer:
         glEnd()
 
         glutSwapBuffers()
+
+        # DUHHHHHHHHHHHHHHHH
