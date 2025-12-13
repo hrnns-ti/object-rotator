@@ -107,3 +107,4 @@ class CubeRenderer:
         glutSwapBuffers()
 
         # DUHHHHHHHHHHHHHHHH
+        # WHY DO I CHOOSE THIS PROJECT NUH UHHHHHHHHHHHHH
