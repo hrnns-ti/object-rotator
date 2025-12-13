@@ -19,6 +19,7 @@ class CubeRenderer:
             self.vertices = loader.vertices
             self.faces = loader.faces
             self.face_colors = loader.face_colors
+            self.face_normals = loader.face_normals
         else:
             # fallback cube
             self.vertices = [
@@ -41,6 +42,12 @@ class CubeRenderer:
             ]
             # default: semua face satu warna
             self.face_colors = [(0.7, 0.7, 1.0)] * len(self.faces)
+            self.face_normals = [(0.0, 0.0, 1.0)] * len(self.faces)
+
+            print(
+                f"[CubeRenderer] mesh loaded: {len(self.vertices)} vertices, "
+                f"{len(self.faces)} faces"
+            )
 
         print(f"[CubeRenderer] mesh loaded: {len(self.vertices)} vertices, {len(self.faces)} faces")
 
@@ -51,10 +58,22 @@ class CubeRenderer:
 
     def init_gl(self, width: int = 800, height: int = 600):
         print("[CubeRenderer] init_gl")
+
         glClearColor(0.1, 0.1, 0.1, 1)
         glEnable(GL_DEPTH_TEST)
-        glDisable(GL_CULL_FACE)
-        glDisable(GL_LIGHTING)  # pastikan warna dari glColor terlihat jelas
+
+        glEnable(GL_LIGHTING)
+        glEnable(GL_LIGHT0)
+        glLightfv(GL_LIGHT0, GL_POSITION, (5.0, 5.0, 10.0, 1.0))
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, (1.0, 1.0, 1.0, 1.0))
+        glLightfv(GL_LIGHT0, GL_AMBIENT, (0.2, 0.2, 0.2, 1.0))
+
+        glEnable(GL_COLOR_MATERIAL)
+        glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
+
+        glEnable(GL_CULL_FACE)
+        glCullFace(GL_BACK)
+        glFrontFace(GL_CCW)
 
         glViewport(0, 0, width, height)
         glMatrixMode(GL_PROJECTION)
@@ -73,7 +92,6 @@ class CubeRenderer:
                   0.0, 1.0, 0.0)
 
         glTranslatef(self.offset_x, self.offset_y, self.offset_z)
-
         glScalef(self.scale, self.scale, self.scale)
         glRotatef(self.rot_x, 1, 0, 0)
         glRotatef(self.rot_y, 0, 1, 0)
