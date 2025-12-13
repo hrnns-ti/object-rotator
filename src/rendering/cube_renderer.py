@@ -11,14 +11,16 @@ class CubeRenderer:
         self.scale = 1.0
 
         self.offset_x = 0.0
-        self.offset_y = -1.0
+        self.offset_y = -2.0
         self.offset_z = 0.0
 
         if obj_path is not None:
             loader = OBJLoader(obj_path)
-            self.vertices = loader.vertices           # list[(x,y,z)]
-            self.faces = loader.faces                 # list[(i,j,k)]
+            self.vertices = loader.vertices
+            self.faces = loader.faces
+            self.face_colors = loader.face_colors
         else:
+            # fallback cube
             self.vertices = [
                 (-1, -1, -1),
                 ( 1, -1, -1),
@@ -37,6 +39,8 @@ class CubeRenderer:
                 (1, 2, 6), (1, 6, 5),
                 (0, 3, 7), (0, 7, 4),
             ]
+            # default: semua face satu warna
+            self.face_colors = [(0.7, 0.7, 1.0)] * len(self.faces)
 
         print(f"[CubeRenderer] mesh loaded: {len(self.vertices)} vertices, {len(self.faces)} faces")
 
@@ -50,9 +54,9 @@ class CubeRenderer:
         glClearColor(0.1, 0.1, 0.1, 1)
         glEnable(GL_DEPTH_TEST)
         glDisable(GL_CULL_FACE)
+        glDisable(GL_LIGHTING)  # pastikan warna dari glColor terlihat jelas
 
         glViewport(0, 0, width, height)
-
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
         gluPerspective(45.0, width / float(height), 0.1, 100.0)
@@ -64,7 +68,6 @@ class CubeRenderer:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
 
-        # kamera
         gluLookAt(0.0, 0.0, 7.0,
                   0.0, 0.0, 0.0,
                   0.0, 1.0, 0.0)
@@ -76,8 +79,8 @@ class CubeRenderer:
         glRotatef(self.rot_y, 0, 1, 0)
 
         glBegin(GL_TRIANGLES)
-        glColor3f(0.2, 0.8, 0.3)
-        for face in self.faces:          # face = (i,j,k)
+        for face, color in zip(self.faces, self.face_colors):
+            glColor3f(*color)
             for idx in face[:3]:
                 x, y, z = self.vertices[idx]
                 glVertex3f(x, y, z)

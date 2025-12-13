@@ -1,34 +1,30 @@
-from typing import List, Tuple, Dict, Optional
 import os
-
+from typing import List, Tuple, Dict, Optional
 
 class OBJLoader:
     def __init__(self, path: str):
         self.vertices: List[Tuple[float, float, float]] = []
-        self.faces: List[Tuple[int, int, int]] = []             # (i,j,k)
-        self.face_colors: List[Tuple[float, float, float]] = [] # warna per-face
-
+        self.faces: List[Tuple[int, int, int]] = []
+        self.face_colors: List[Tuple[float, float, float]] = []
         self._load(path)
 
     def _load(self, path: str):
         base_dir = os.path.dirname(path)
-        current_color: Optional[Tuple[float, float, float]] = (0.8, 0.8, 0.8)
-
+        current_color: Tuple[float, float, float] = (0.8, 0.8, 0.8)
         mtl_colors: Dict[str, Tuple[float, float, float]] = {}
 
         with open(path, "r") as f:
             lines = f.readlines()
 
-        # cari mtllib
         for line in lines:
             line = line.strip()
             if line.startswith("mtllib"):
                 _, mtl_name = line.split(maxsplit=1)
                 mtl_path = os.path.join(base_dir, mtl_name)
                 mtl_colors = self._load_mtl(mtl_path)
-                break  # cukup satu mtllib
+                break
 
-        current_material = None
+        current_material: Optional[str] = None
 
         for line in lines:
             line = line.strip()
@@ -40,13 +36,13 @@ class OBJLoader:
                 current_material = mat_name.strip()
                 current_color = mtl_colors.get(current_material, (0.8, 0.8, 0.8))
 
-            elif line.startswith("v "):  # vertex
+            elif line.startswith("v "):
                 parts = line.split()
                 if len(parts) >= 4:
                     _, x, y, z = parts[:4]
                     self.vertices.append((float(x), float(y), float(z)))
 
-            elif line.startswith("f "):  # face (triangles)
+            elif line.startswith("f "):
                 parts = line.split()[1:]
                 idx = []
                 for p in parts[:3]:
@@ -59,7 +55,6 @@ class OBJLoader:
         print(f"[OBJLoader] loaded {len(self.vertices)} vertices, {len(self.faces)} faces, {len(mtl_colors)} materials")
 
     def _load_mtl(self, mtl_path: str) -> Dict[str, Tuple[float, float, float]]:
-        """Parse .mtl and return dict: material_name -> (r,g,b)"""
         colors: Dict[str, Tuple[float, float, float]] = {}
         if not os.path.exists(mtl_path):
             print(f"[OBJLoader] MTL not found: {mtl_path}")

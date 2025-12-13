@@ -127,7 +127,7 @@ def main():
                             (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
                             (0, 255, 255), 2)
 
-        # integrasi rotasi dari vektor gerak tangan kiri
+        # INTEGRASI VEAKTOR KIRI
         dx, dy = rot_vector
         dead = 1.0
         if abs(dx) < dead:
@@ -140,7 +140,7 @@ def main():
         rot_x += rot_speed_x
         rot_y += rot_speed_y
 
-        # kirim state ke renderer (kalau queue lagi kosong)
+        # KIRIM STATE (kalau queue lagi kosong)
         if render_queue.empty():
             render_queue.put((rot_x, rot_y, scale))
 
