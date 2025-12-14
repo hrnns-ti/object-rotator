@@ -54,7 +54,7 @@ class CubeRenderer:
     def update_state(self, rot_x: float, rot_y: float, scale: float):
         self.rot_x = rot_x
         self.rot_y = rot_y
-        self.scale = scale * 0.2
+        self.scale = scale * 0.1
 
     def init_gl(self, width: int = 800, height: int = 600):
         print("[CubeRenderer] init_gl")

@@ -31,7 +31,8 @@ def main():
 
     # queue untuk kirim data ke thread OpenGL
     render_queue = queue.Queue()
-    cube = CubeRenderer(obj_path="models/Lowpoly_tree_sample.obj")  # path .obj
+    # cube = CubeRenderer(obj_path="models/12140_Skull_v3_L2.obj")  # PATH OBJ SKULL
+    cube = CubeRenderer(obj_path="models/Lowpoly_tree_sample.obj")  # PATH OBJ TREE
 
     # ================= THREAD OPENGL ================= #
     def gl_thread():
