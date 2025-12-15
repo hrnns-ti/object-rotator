@@ -102,11 +102,9 @@ class OBJLoader:
         v1: Tuple[float, float, float],
         v2: Tuple[float, float, float],
     ) -> Tuple[float, float, float]:
-        # v0, v1, v2 = (x, y, z)
         x1, y1, z1 = v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]
         x2, y2, z2 = v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]
 
-        # cross product
         nx = y1 * z2 - z1 * y2
         ny = z1 * x2 - x1 * z2
         nz = x1 * y2 - y1 * x2
@@ -115,3 +113,15 @@ class OBJLoader:
         if length == 0:
             return 0.0, 0.0, 1.0
         return nx / length, ny / length, nz / length
+
+    def compute_centroid(self) -> Tuple[float, float, float]:
+        """Hitung titik tengah (centroid) dari semua vertex"""
+        if not self.vertices:
+            return (0.0, 0.0, 0.0)
+
+        sum_x = sum(v[0] for v in self.vertices)
+        sum_y = sum(v[1] for v in self.vertices)
+        sum_z = sum(v[2] for v in self.vertices)
+
+        n = len(self.vertices)
+        return (sum_x / n, sum_y / n, sum_z / n)
