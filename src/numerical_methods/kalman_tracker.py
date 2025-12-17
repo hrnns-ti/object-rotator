@@ -22,8 +22,8 @@ class KalmanFilterTracker(Base):
         ], dtype=np.float32)
 
         # SEBERAPA HALUS / PERCAYA MODEL vs SENSOR
-        self.Q = np.eye(4, dtype=np.float32) * 0.03  # process noise
-        self.R = np.eye(2, dtype=np.float32) * 0.1   # measurement noise
+        self.Q = np.eye(4, dtype=np.float32) * 0.03  # process noise - model
+        self.R = np.eye(2, dtype=np.float32) * 0.1   # measurement noise - sensor
 
         # STATE & COVARIANCE
         self.x = np.zeros((4, 1), dtype=np.float32)      # [x, y, vx, vy]^T
