@@ -6,9 +6,13 @@ from cvzone.HandTrackingModule import HandDetector
 import threading
 import queue
 import time
+import sys
 
 from src.controllers.hand_controller import HandTrackingController
 from src.rendering.cube_renderer import CubeRenderer
+
+
+global_mode = {"mode": 3}   # 1=RAW, 2=SMOOTH, 3=KALMAN
 
 
 def main():
@@ -16,11 +20,15 @@ def main():
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
+    width = 1280
+    height = 720
+    cx = width / 2.0
+    cy = height / 2.0
+
     detector = HandDetector(detectionCon=0.8, maxHands=2)
 
     rot_ctrl = HandTrackingController()
-    rot_ctrl.set_mode(3)          # default Kalman
-    mode_rot = 3                  # 1=RAW, 2=SMOOTH, 3=KALMAN
+    rot_ctrl.set_mode(3)
 
     scale = 1.0
     scale_alpha = 0.2
@@ -42,6 +50,7 @@ def main():
         from OpenGL.GLUT import (
             glutInit, glutInitDisplayMode, glutInitWindowSize,
             glutCreateWindow, glutDisplayFunc, glutIdleFunc, glutMainLoop,
+            glutKeyboardFunc,
             GLUT_DOUBLE, GLUT_RGBA, GLUT_DEPTH
         )
 
@@ -61,8 +70,26 @@ def main():
             cube.draw()
             glutPostRedisplay()
 
+        def keyboard(key, x, y):
+            k = key.decode("utf-8")
+            if k == '1':
+                global_mode["mode"] = 1
+                print("Mode rotation: RAW")
+            elif k == '2':
+                global_mode["mode"] = 2
+                rot_ctrl.set_mode(2)
+                print("Mode rotation: SMOOTH")
+            elif k == '3':
+                global_mode["mode"] = 3
+                rot_ctrl.set_mode(3)
+                print("Mode rotation: KALMAN")
+            elif k == 'q' or ord(k) == 27:
+                print("Exit requested")
+                sys.exit(0)
+
         glutDisplayFunc(display)
         glutIdleFunc(display)
+        glutKeyboardFunc(keyboard)
         glutMainLoop()
 
     threading.Thread(target=gl_thread, daemon=True).start()
@@ -78,6 +105,7 @@ def main():
 
         rot_vector = (0.0, 0.0)
         now = time.time()
+        mode_rot = global_mode["mode"]
 
         if hands:
             hands = sorted(hands, key=lambda h: h['center'][0])
@@ -87,35 +115,36 @@ def main():
                 left = hands[0]
                 x_raw, y_raw = left['center']
 
-                # ===== pilih filter =====
-                if mode_rot == 1:          # RAW: langsung pakai detector
+                if mode_rot == 1:          # RAW
                     x_f, y_f = float(x_raw), float(y_raw)
-                else:                      # SMOOTH / KALMAN
+                else:
                     x_f, y_f = rot_ctrl.process(float(x_raw), float(y_raw))
-                # =======================
 
-                # visual debug: merah=raw, hijau=filtered
                 cv2.circle(img, (int(x_raw), int(y_raw)), 7, (0, 0, 255), -1)
                 cv2.circle(img, (int(x_f), int(y_f)), 7, (0, 255, 0), 2)
 
-                if baseline_left_pos is None:
-                    baseline_left_pos = (x_f, y_f)
+                if mode_rot == 1:
+                    # RAW: pakai posisi absolut
+                    rot_vector = (x_f, y_f)
+                else:
+                    if baseline_left_pos is None:
+                        baseline_left_pos = (x_f, y_f)
 
-                dx = x_f - baseline_left_pos[0]
-                dy = y_f - baseline_left_pos[1]
-                rot_vector = (dx, dy)
+                    dx = x_f - baseline_left_pos[0]
+                    dy = y_f - baseline_left_pos[1]
+                    rot_vector = (dx, dy)
 
-                # gambar baseline
-                cv2.circle(img, (int(baseline_left_pos[0]), int(baseline_left_pos[1])),
-                           7, (255, 0, 0), 2)
-                cv2.line(img,
-                         (int(baseline_left_pos[0]), int(baseline_left_pos[1])),
-                         (int(x_f), int(y_f)),
-                         (255, 0, 0), 1)
+                    cv2.circle(img,
+                               (int(baseline_left_pos[0]), int(baseline_left_pos[1])),
+                               7, (255, 0, 0), 2)
+                    cv2.line(img,
+                             (int(baseline_left_pos[0]), int(baseline_left_pos[1])),
+                             (int(x_f), int(y_f)),
+                             (255, 0, 0), 1)
 
-                if now - last_baseline_time > baseline_interval:
-                    baseline_left_pos = (x_f, y_f)
-                    last_baseline_time = now
+                    if now - last_baseline_time > baseline_interval:
+                        baseline_left_pos = (x_f, y_f)
+                        last_baseline_time = now
 
             # kanan → scale
             if len(hands) >= 2:
@@ -126,13 +155,24 @@ def main():
 
                 dist = np.hypot(x_idx - x_thumb, y_idx - y_thumb)
 
-                d_min, d_max = 30.0, 200.0
-                s_min, s_max = 0.5, 2.0
-                d_clamped = max(d_min, min(d_max, dist))
-                t = (d_clamped - d_min) / (d_max - d_min)
-                target_scale = s_min + t * (s_max - s_min)
+                # hanya batas bawah jarak (supaya tidak 0)
+                d_min = 30.0
+                d_clamped = max(d_min, dist)
 
-                scale = (1 - scale_alpha) * scale + scale_alpha * target_scale
+                # batas bawah skala
+                s_min = 0.5
+                # sensitivitas pembesaran (semakin besar, semakin cepat membesar)
+                k = 1.0 / (200.0 - d_min)
+
+                t = (d_clamped - d_min)
+                target_scale = s_min + k * t  # bisa > 2.0, tidak ada limit atas
+
+                if mode_rot == 1:
+                    # RAW: langsung
+                    scale = target_scale
+                else:
+                    # mode lain: smoothing
+                    scale = (1 - scale_alpha) * scale + scale_alpha * target_scale
 
                 cv2.line(img, (int(x_thumb), int(y_thumb)),
                          (int(x_idx), int(y_idx)), (255, 0, 0), 2)
@@ -142,31 +182,33 @@ def main():
         else:
             baseline_left_pos = None
 
-        # ========== integrasi rotasi ==========
+        # ========== mapping / integrasi rotasi ==========
         dx, dy = rot_vector
 
         if mode_rot == 1:
-            # RAW: benar‑benar pakai delta mentah, tanpa smoothing & deadzone
-            dx_eff, dy_eff = dx, dy
-            dead = 0.0
-            gain = 0.04
+            # RAW: perkuat jitter dekat tengah
+            x_norm = (dx - cx) / cx       # -1..1
+            y_norm = (dy - cy) / cy       # -1..1
+
+            jitter_gain = 80.0            # naikkan jika perlu
+            x_nonlin = np.sign(x_norm) * (abs(x_norm) ** 0.5)
+            y_nonlin = np.sign(y_norm) * (abs(y_norm) ** 0.5)
+
+            rot_x = -y_nonlin * jitter_gain
+            rot_y =  x_nonlin * jitter_gain
         else:
-            # SMOOTH / KALMAN: haluskan delta
             alpha = 0.3
             rot_dx_s = (1 - alpha) * rot_dx_s + alpha * dx
             rot_dy_s = (1 - alpha) * rot_dy_s + alpha * dy
-            dx_eff, dy_eff = rot_dx_s, rot_dy_s
+
             dead = 1.0
+            dx_eff = 0.0 if abs(rot_dx_s) < dead else rot_dx_s
+            dy_eff = 0.0 if abs(rot_dy_s) < dead else rot_dy_s
             gain = 0.04
 
-        if abs(dx_eff) < dead:
-            dx_eff = 0.0
-        if abs(dy_eff) < dead:
-            dy_eff = 0.0
-
-        rot_x += -dy_eff * gain
-        rot_y +=  dx_eff * gain
-        # =====================================
+            rot_x += -dy_eff * gain
+            rot_y +=  dx_eff * gain
+        # ================================================
 
         if render_queue.empty():
             render_queue.put((rot_x, rot_y, scale))
@@ -191,21 +233,7 @@ def main():
 
         cv2.imshow("Two-Hand Control (Rotation + Scale)", img)
 
-        key = cv2.waitKey(1)
-        print("key:", key)  # DEBUG
-
-        if key == ord('1'):
-            mode_rot = 1  # RAW
-            print("Mode rotation: RAW")
-        elif key == ord('2'):
-            mode_rot = 2
-            rot_ctrl.set_mode(2)
-            print("Mode rotation: SMOOTH")
-        elif key == ord('3'):
-            mode_rot = 3
-            rot_ctrl.set_mode(3)
-            print("Mode rotation: KALMAN")
-        elif key == ord('q') or key == 27:
+        if cv2.waitKey(1) == 27:
             break
 
     cap.release()
