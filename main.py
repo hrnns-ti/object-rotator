@@ -43,7 +43,7 @@ def main():
     rot_dy_s = 0.0
 
     render_queue = queue.Queue()
-    cube = CubeRenderer(obj_path="models/Lowpoly_tree_sample.obj")
+    cube = CubeRenderer(obj_path="models/12140_Skull_v3_L2.obj")
 
     # ================= THREAD OPENGL ================= #
     def gl_thread():
@@ -190,7 +190,7 @@ def main():
             x_norm = (dx - cx) / cx       # -1..1
             y_norm = (dy - cy) / cy       # -1..1
 
-            jitter_gain = 80.0            # naikkan jika perlu
+            jitter_gain = 180.0            # naikkan jika perlu
             x_nonlin = np.sign(x_norm) * (abs(x_norm) ** 0.5)
             y_nonlin = np.sign(y_norm) * (abs(y_norm) ** 0.5)
 
