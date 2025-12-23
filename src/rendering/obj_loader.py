@@ -4,9 +4,13 @@ from typing import List, Tuple, Dict, Optional
 
 class OBJLoader:
     def __init__(self, path: str):
+        # daftar vertex global (x, y, z)
         self.vertices: List[Tuple[float, float, float]] = []
-        self.faces: List[Tuple[int, int, int]] = []
+        # tiap face: list indeks vertex [v0, v1, v2, ...] (boleh 3, 4, 5, ...)
+        self.faces: List[List[int]] = []
+        # warna per-face (diambil dari material aktif)
         self.face_colors: List[Tuple[float, float, float]] = []
+        # normal per-face (dipakai untuk lighting)
         self.face_normals: List[Tuple[float, float, float]] = []
 
         self._load(path)
@@ -19,7 +23,7 @@ class OBJLoader:
         with open(path, "r") as f:
             lines = f.readlines()
 
-        # cari dan load .mtl
+        # 1) cari dan load .mtl (jika ada)
         for line in lines:
             line = line.strip()
             if line.startswith("mtllib"):
@@ -30,34 +34,40 @@ class OBJLoader:
 
         current_material: Optional[str] = None
 
+        # 2) parse vertex dan face
         for line in lines:
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
 
             if line.startswith("usemtl"):
+                # ganti material aktif
                 _, mat_name = line.split(maxsplit=1)
                 current_material = mat_name.strip()
                 current_color = mtl_colors.get(current_material, (0.8, 0.8, 0.8))
 
             elif line.startswith("v "):
+                # vertex posisi
                 parts = line.split()
                 if len(parts) >= 4:
                     _, x, y, z = parts[:4]
                     self.vertices.append((float(x), float(y), float(z)))
 
             elif line.startswith("f "):
+                # face: bisa 3,4,5,... vertex
                 parts = line.split()[1:]
                 idx: List[int] = []
-                for p in parts[:3]:
-                    v_idx = p.split("/")[0]
-                    idx.append(int(v_idx) - 1)
+                for p in parts:
+                    # format bisa v, v/vt, v/vt/vn → ambil bagian vertex saja
+                    vidx = p.split("/")[0]
+                    idx.append(int(vidx) - 1)  # OBJ 1-based → 0-based
 
-                if len(idx) == 3:
-                    self.faces.append(tuple(idx))
+                if len(idx) >= 3:
+                    # simpan semua indeks face apa adanya
+                    self.faces.append(idx)
                     self.face_colors.append(current_color)
 
-                    # hitung normal face
+                    # hitung normal dari 3 vertex pertama face
                     v0 = self.vertices[idx[0]]
                     v1 = self.vertices[idx[1]]
                     v2 = self.vertices[idx[2]]
@@ -70,6 +80,7 @@ class OBJLoader:
         )
 
     def _load_mtl(self, mtl_path: str) -> Dict[str, Tuple[float, float, float]]:
+        """Parse file .mtl dan ambil warna diffuse (Kd) per material."""
         colors: Dict[str, Tuple[float, float, float]] = {}
         if not os.path.exists(mtl_path):
             print(f"[OBJLoader] MTL not found: {mtl_path}")
@@ -102,6 +113,7 @@ class OBJLoader:
         v1: Tuple[float, float, float],
         v2: Tuple[float, float, float],
     ) -> Tuple[float, float, float]:
+        """Normal face dari tiga titik (v0,v1,v2)."""
         x1, y1, z1 = v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]
         x2, y2, z2 = v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]
 
@@ -110,12 +122,12 @@ class OBJLoader:
         nz = x1 * y2 - y1 * x2
 
         length = (nx * nx + ny * ny + nz * nz) ** 0.5
-        if length == 0:
+        if length == 0.0:
             return 0.0, 0.0, 1.0
         return nx / length, ny / length, nz / length
 
     def compute_centroid(self) -> Tuple[float, float, float]:
-        """Hitung titik tengah (centroid) dari semua vertex"""
+        """Hitung titik tengah (centroid) dari semua vertex."""
         if not self.vertices:
             return (0.0, 0.0, 0.0)
 

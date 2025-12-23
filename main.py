@@ -43,7 +43,7 @@ def main():
     rot_dy_s = 0.0
 
     render_queue = queue.Queue()
-    cube = CubeRenderer(obj_path="models/12140_Skull_v3_L2.obj")
+    cube = CubeRenderer(obj_path="models/mug.obj")
 
     # ================= THREAD OPENGL ================= #
     def gl_thread():
